@@ -1,8 +1,8 @@
 /*
  * uoamhub
- * $Id: uoamhub.c 112 2004-12-24 01:31:31Z max $
+ * $Id: uoamhub.c 127 2005-02-17 20:56:05Z max $
  *
- * (c) 2004 Max Kellermann <max@duempel.org>
+ * (c) 2004-2005 Max Kellermann <max@duempel.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -41,7 +42,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#ifdef __GLIBC__
 #include <getopt.h>
+#endif
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
@@ -54,7 +57,9 @@
 
 /** source for client ids (which are important for security). if you
     have a hardware random device, change this */
+#ifndef RANDOM_DEVICE
 #define RANDOM_DEVICE "/dev/urandom"
+#endif
 
 /*
   feel free to tune:
@@ -73,7 +78,7 @@
 #define MAX_CHATS 64
 
 /** version number of this software */
-static const char VERSION[] = "0.9";
+static const char VERSION[] = "0.9.1";
 
 #ifndef DISABLE_LOGGING
 /** verbosity - increasing this will trash the screen */
@@ -294,20 +299,39 @@ static void usage(void) {
             "valid options:\n"
             " -h             help (this text)\n"
             " -V             print version number\n"
+#ifdef __GLIBC__
             " --verbose\n"
+#endif
             " -v             increase verbosity (default 1)\n"
+#ifdef __GLIBC__
             " --quiet\n"
+#endif
             " -q             reset verbosity to 0\n"
-            " --password file    single-domain, only accept the password from the file\n"
+#ifdef __GLIBC__
+            " --password file\n"
+#endif
+            " -w file        single-domain, only accept the password from the file\n"
+#ifdef __GLIBC__
             " --port port\n"
+#endif
             " -p port        listen on this port (default 2000)\n"
+#ifdef __GLIBC__
             " --logger program\n"
+#endif
             " -l program     specifies a logger program (executed by /bin/sh)\n"
-            " --chroot dir   chroot into this directory (requires root)\n"
+#ifdef __GLIBC__
+            " --chroot dir\n"
+#endif
+            " -r dir         chroot into this directory (requires root)\n"
+#ifdef __GLIBC__
             " --user username\n"
+#endif
             " -u username    change user id (don't run uoamhub as root!)\n"
             " -D             don't detach (daemonize)\n"
-            " --pidfile file create a pid file\n"
+#ifdef __GLIBC__
+            " --pidfile file\n"
+#endif
+            " -P file        create a pid file\n"
             "\n"
             );
     exit(1);
@@ -360,6 +384,7 @@ static int read_file_string(const char *filename, char **value) {
 static void read_config(struct config *config, int argc, char **argv) {
     int ret;
     struct addrinfo hints;
+#ifdef __GLIBC__
     static const struct option long_options[] = {
         {"version", 0, 0, 'V'},
         {"verbose", 0, 0, 'v'},
@@ -373,6 +398,7 @@ static void read_config(struct config *config, int argc, char **argv) {
         {"password", 1, 0, 'w'},
         {0,0,0,0}
     };
+#endif
 #ifndef DISABLE_DAEMON_CODE
     struct passwd *pw;
     struct stat st;
@@ -382,10 +408,14 @@ static void read_config(struct config *config, int argc, char **argv) {
     config->port = 2000;
 
     while (1) {
+#ifdef __GLIBC__
         int option_index = 0;
 
         ret = getopt_long(argc, argv, "Vvqhp:r:u:Dl:w:",
                           long_options, &option_index);
+#else
+        ret = getopt(argc, argv, "Vvqhp:r:u:Dl:w:");
+#endif
         if (ret == -1)
             break;
 
@@ -511,7 +541,7 @@ static void free_config(struct config *config) {
 
 /** set up stuff, e.g. sockets, pipes, daemonize */
 static void setup(struct config *config, int *randomfdp, int *sockfdp) {
-    int ret, sockfd;
+    int ret, sockfd, param;
 #ifndef DISABLE_DAEMON_CODE
     int parentfd = -1, loggerfd = -1;
     pid_t logger_pid = -1;
@@ -519,17 +549,38 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
     struct sigaction sa;
 
     /* random device */
+#ifdef HAVE_DEV_RANDOM
     *randomfdp = open(RANDOM_DEVICE, O_RDONLY);
     if (*randomfdp < 0) {
         fprintf(stderr, "failed to open %s: %s\n",
                 RANDOM_DEVICE, strerror(errno));
         exit(1);
     }
+#else
+    *randomfdp = -1;
+#endif
 
     /* server socket stuff */
     sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         fprintf(stderr, "failed to create socket: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+    /* get rid of the "Address already in use" errors */
+    param = 1;
+    ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &param, sizeof(param));
+    if (ret < 0) {
+        fprintf(stderr, "setsockopt failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+    param = 1;
+    ret = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &param, sizeof(param));
+    if (ret < 0) {
+        fprintf(stderr, "setsockopt failed: %s\n",
                 strerror(errno));
         exit(1);
     }
@@ -577,7 +628,7 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
 
             close(fds[1]);
 
-            log(4, "waiting for daemon process %d\n", pid);
+            log(4, "waiting for daemon process %ld\n", (long)pid);
 
             do {
                 FD_ZERO(&rfds);
@@ -586,7 +637,7 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
                 tv.tv_usec = 100000;
                 ret = select(fds[0] + 1, &rfds, NULL, NULL, &tv);
                 if (ret > 0 && read(fds[0], buffer, sizeof(buffer)) > 0) {
-                    log(2, "detaching %d\n", getpid());
+                    log(2, "detaching %ld\n", (long)getpid());
                     exit(0);
                 }
 
@@ -609,7 +660,7 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
 
-        log(3, "daemonized as pid %d\n", getpid());
+        log(3, "daemonized as pid %ld\n", (long)getpid());
     }
 
     /* write PID file */
@@ -623,7 +674,7 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
             exit(1);
         }
 
-        fprintf(file, "%d\n", getpid());
+        fprintf(file, "%ld\n", (long)getpid());
         fclose(file);
     }
 
@@ -653,18 +704,20 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
             close(1);
             close(2);
             close(sockfd);
+#ifdef HAVE_DEV_RANDOM
             close(*randomfdp);
+#endif
 
             execl("/bin/sh", "sh", "-c", config->logger, NULL);
             exit(1);
         }
 
-        log(2, "logger started as pid %d\n", logger_pid);
+        log(2, "logger started as pid %ld\n", (long)logger_pid);
 
         close(fds[0]);
         loggerfd = fds[1];
 
-        log(3, "logger %d connected\n", logger_pid);
+        log(3, "logger %ld connected\n", (long)logger_pid);
     }
 
     /* chroot */
@@ -715,6 +768,8 @@ static void setup(struct config *config, int *randomfdp, int *sockfdp) {
     sa.sa_handler = SIG_IGN;
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+    sigaction(SIGPIPE, &sa, NULL);
 
 #ifndef DISABLE_DAEMON_CODE
     /* send parent process a signal */
@@ -837,7 +892,9 @@ static struct client *create_client(struct domain *domain, int sockfd,
                                     int randomfd) {
     struct client *client;
     int ret;
+#ifdef HAVE_DEV_RANDOM
     ssize_t nbytes;
+#endif
 
     client = calloc(1, sizeof(*client));
     if (client == NULL)
@@ -851,12 +908,19 @@ static struct client *create_client(struct domain *domain, int sockfd,
 
     /* a good random client id is vitally important for security,
        because secondary connections authorized themselves with it */
+#ifdef HAVE_DEV_RANDOM
     nbytes = read(randomfd, &client->id, sizeof(client->id));
     if (nbytes < (ssize_t)sizeof(client->id)) {
         fprintf(stderr, "random number generation failed\n");
         free(client);
         return NULL;
     }
+#else
+    (void)randomfd;
+
+    client->id = (random() << 24) + (random() << 16)
+        + (random() << 8) + random();
+#endif
 
     client->sockets[0] = sockfd;
     client->num_sockets = 1;
@@ -1455,18 +1519,19 @@ static void handle_packet(struct client *client, unsigned socket_index,
     }
 
     /* handle login */
-    if (!client->authorized) {
+    if (memchr(data + 24, 0, 20) == NULL) {
+        log(1, "malformed password field from, killing client %s\n",
+            client->name);
+        client->should_destroy = 1;
+        return;
+    }
+
+    if (!client->authorized ||
+        strcmp((const char*)(data + 24), client->domain->password) != 0) {
         /* the password is sent with every 0x00 packet (what a waste);
            we use the first 0x00 packet to log in and ignore all
            following passwords */
         int ret;
-
-        if (memchr(data + 24, 0, 20) == NULL) {
-            log(1, "malformed password field from, killing client %s\n",
-                client->name);
-            client->should_destroy = 1;
-            return;
-        }
 
         ret = login(client, (const char*)(data + 24));
         if (!ret)

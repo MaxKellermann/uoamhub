@@ -1,2 +1,2 @@
 all clean install:
-	make -C src $@
+	$(MAKE) -C src $@

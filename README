@@ -1,9 +1,9 @@
 uoamhub
 =======
 
-$Id: README 93 2004-12-23 21:36:39Z max $
+$Id: README 127 2005-02-17 20:56:05Z max $
 
-(c) 2004 Max Kellermann <max@duempel.org>
+(c) 2004-2005 Max Kellermann <max@duempel.org>
 
 
 What is uoamhub?
@@ -31,9 +31,9 @@ Compilation
 You do not need this, if you downloaded a binary distribution of
 uoamhub.
 
-uoamhub runs on Linux (should run on all distributions), FreeBSD and
-similar operating systems; maybe MacOS X, OpenBSD, NetBSD, AIX,
-Solaris, HP/UX, Windows/Cygwin and many others - but I havn't tested
+uoamhub runs on Linux (should run on all distributions), FreeBSD,
+Solaris and similar operating systems; maybe MacOS X, OpenBSD, NetBSD,
+AIX, HP/UX, Windows/Cygwin and many others - but I havn't tested
 that. Please tell me whether it does.
 
 You need gcc and GNU make. Go to the source directory and type:
@@ -104,7 +104,7 @@ To Steve
 
 I know you refused to disclose the UOAutoMap protocol for "security
 reasons". I really don't share your idea of "security" and I fail to
-understand how are improving it by not disclosing the protocol.
+understand how you are improving it by not disclosing the protocol.
 Anyway, I did find out without your help in less than 2 hours. That
 for the "security".
 
@@ -126,7 +126,7 @@ project delivers exactly this. That's a GoodThing(TM).
 Legal
 -----
 
-Copyright 2004 Max Kellermann (max@duempel.org)
+Copyright 2004-2005 Max Kellermann (max@duempel.org)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
