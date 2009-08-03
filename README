@@ -1,7 +1,7 @@
 uoamhub
 =======
 
-$Id: README 127 2005-02-17 20:56:05Z max $
+$Id: README 141 2006-11-17 15:56:26Z make $
 
 (c) 2004-2005 Max Kellermann <max@duempel.org>
 
@@ -40,8 +40,8 @@ You need gcc and GNU make. Go to the source directory and type:
 
  make
 
-(Or "gmake" if you are not on Linux). This will result in the binary
-named "uoamhub".
+(Or "gmake CC=gcc" if you are not on Linux).  This will result in the
+binary named "uoamhub".
 
 
 Running
@@ -87,7 +87,7 @@ write the password to a file and tell uoamhub where the file is:
 
  umask 077
  echo topsecret >/tmp/uoampasswd
- uoamhub --password /tmp/uoampasswd
+ ./uoamhub --password /tmp/uoampasswd
 
 
 Links

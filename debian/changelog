@@ -1,3 +1,13 @@
+uoamhub (0.9.2) unstable; urgency=low
+
+  * one bit flags are unsigned
+  * fixed waitpid() call, don't reuse variable
+  * explicitly cast execl() sentinel
+  * check for client disconnect after removing stale sockets
+  * don't build with cdbs
+
+ --
+
 uoamhub (0.9.1) unstable; urgency=low
 
   * use getopt() if getopt_long() is not available
