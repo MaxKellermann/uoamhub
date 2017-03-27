@@ -49,7 +49,7 @@ HEADERS = $(wildcard src/*.h)
 all: src/uoamhub
 
 clean:
-	rm -f src/uoamhub
+	rm -f src/uoamhub src/*.o
 
 $(OBJECTS): %.o: %.c $(HEADERS)
 	$(CC) -c $< -o $@ $(CFLAGS) $(WARNING_CFLAGS) $(FEATURE_CFLAGS)
