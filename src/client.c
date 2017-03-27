@@ -37,8 +37,6 @@ static void free_client(struct client *client) {
 
     assert(client != NULL);
     assert(client->domain == NULL);
-    assert(client->prev == NULL);
-    assert(client->next == NULL);
 
     for (z = 0; z < client->num_sockets; z++)
         close(client->sockets[z]);
